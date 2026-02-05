@@ -19,6 +19,15 @@ A professional-grade talkback communication system for recording studios and liv
 - **📱 Responsive Design** - Works seamlessly on desktop and tablet/smartphone devices on browser
 - **🔐 Simple Authentication** - Basic auth system for configuration protection
 
+## 🆕 Recent Features
+
+- **🏠 Dashboard Homescreen** — New entry screen with glassmorphism design matching the app aesthetic; provides quick access to Talkback and FOH Assistant.
+- **📞 FOH Assistant** — Separate FOH view that displays incoming FOH calls as large, dismissible call buttons (supports multiple simultaneous calls).
+- **🔔 FOH Call Queue** — Musicians can trigger `FOH CALL` from their Talkback page; each call appears in a queue on FOH Assistant and can be dismissed individually by FOH or toggled off by the caller.
+- **🌐 Cross-device Real-time Calls** — FOH calls are now broadcast over WebSocket (`FOH_CALL` / `FOH_DISMISS`) so calls appear across devices in real time.
+- **🔗 Header Logo Shortcut** — App logo in the header is a clickable link back to the Dashboard.
+
+
 ## 🏗️ Architecture
 
 TalkBack Control is built as a full-stack TypeScript application:
@@ -166,6 +175,14 @@ Configuration is managed through the Settings page (`/settings`) and stored in `
 - **Gain Control**: Vertical slider for precise gain adjustment (0-100%)
 - **Talk Button**: Large push-to-talk button with active state indication
 - **Connection Status**: Visual indicator for WebSocket connection state
+
+### Dashboard
+- **Entry Screen**: Clean, centered layout with app logo, title and two large buttons for `TALKBACK` and `FOH ASSISTANT`.
+- **Same Design Language**: Uses `bg-zinc-950`, backdrop blur, gradients and shadows matching the main app look.
+
+### FOH Assistant
+- **Multi-call View**: Displays active calls as large circular buttons showing musician name and talkback label.
+- **Dismissal Options**: FOH can dismiss individual calls, or the calling musician can cancel their own call from the Talkback page.
 
 ### Settings Page
 - **Logo Upload**: Custom branding with image upload
