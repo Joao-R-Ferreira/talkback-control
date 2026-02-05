@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --header-height: 10vh;
+  --meter-height: 10vh;
+  --control-height: 80vh;
+  touch-action: manipulation;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  background-color: #09090b;
+  /* Zinc-950 */
+  color: #fafafa;
+  /* Zinc-50 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Range Slider Styling */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 48px;
+  width: 48px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 4px solid #18181b;
+  /* Zinc-900 border to separate from track */
+  cursor: pointer;
+  margin-top: -20px;
+  /* You need to specify a margin in Chrome, but in Firefox and IE it is automatic */
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: #27272a;
+  /* Zinc-800 */
+  border-radius: 4px;
+}
+
+input[type=range]:focus {
+  outline: none;
+}

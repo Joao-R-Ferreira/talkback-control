@@ -1,0 +1,55 @@
+{
+  "wing": {
+    "ip": "192.168.1.199",
+    "port": 2223
+  },
+  "talkbacks": [
+    {
+      "id": "tb1",
+      "name": "DRUMS TB",
+      "channelType": "aux",
+      "channelNumber": 4
+    },
+    {
+      "id": "tb2",
+      "name": "BASS TB",
+      "channelType": "aux",
+      "channelNumber": 5
+    },
+    {
+      "id": "tb3",
+      "name": "GUITAR TB",
+      "channelType": "aux",
+      "channelNumber": 6
+    },
+    {
+      "id": "tb1770255030265",
+      "name": "KEYS TB",
+      "channelType": "aux",
+      "channelNumber": 7
+    }
+  ],
+  "musicians": [
+    {
+      "id": "m1",
+      "name": "DRUMS",
+      "talkbackId": "tb1"
+    },
+    {
+      "id": "m2",
+      "name": "BASS",
+      "talkbackId": "tb2"
+    },
+    {
+      "id": "m3",
+      "name": "GUITAR",
+      "talkbackId": "tb3"
+    },
+    {
+      "id": "m1770255178163",
+      "name": "KEYS",
+      "talkbackId": "tb1770255030265"
+    }
+  ],
+  "logoPath": "/uploads/1770260512929-ICMAV LOGO.jpeg"
+}
