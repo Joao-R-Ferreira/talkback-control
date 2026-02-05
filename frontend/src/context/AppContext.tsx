@@ -36,7 +36,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         socketService.connect();
 
         const unsubscribe = socketService.subscribe((data) => {
-            if (data.type === 'METERS') {
+            if (data.type === 'INITIAL_STATE') {
+                // Initialize talkback states from backend
+                const states = data.payload as Array<{ talkbackId: string; gain: number; isMuted: boolean }>;
+                const statesMap: Record<string, { gain: number; isMuted: boolean }> = {};
+                states.forEach(s => {
+                    statesMap[s.talkbackId] = { gain: s.gain, isMuted: s.isMuted };
+                });
+                setTalkbackStates(statesMap);
+            } else if (data.type === 'METERS') {
                 const updates = data.payload as MeterUpdate[];
                 setMeters(prev => {
                     const next = { ...prev };

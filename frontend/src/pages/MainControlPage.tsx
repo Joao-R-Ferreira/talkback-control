@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { socketService } from '../services/socket';
 import clsx from 'clsx';
+import { HeaderItems } from '../context/HeaderContext';
 
 const MainControlPage: React.FC = () => {
     const { config, currentMusician, selectMusician, meters, talkbackStates, isConnected } = useApp();
@@ -15,17 +16,15 @@ const MainControlPage: React.FC = () => {
     // We use local state for gain to ensure smooth dragging, but sync with remote
     const [localGain, setLocalGain] = useState<number | null>(null);
 
-    // Sync local gain with remote when not dragging (or simplified: just sync always if difference is significant)
-    // For MVP, let's just use remote state priority unless we are actively interacting?
-    // actually, let's just use a useEffect to update local gain when remote changes
+    // Sync local gain with remote state from backend
     React.useEffect(() => {
         if (remoteState?.gain !== undefined) {
             setLocalGain(remoteState.gain);
         }
     }, [remoteState?.gain]);
 
-    // If localGain is null (init), default to 0.75
-    const displayGain = localGain ?? 0.75;
+    // If localGain is null (init), default to 0.8 (fallback only, backend should provide state)
+    const displayGain = localGain ?? 0.8;
 
     // Talk state is direct from remote
     const isTalking = remoteState?.isMuted || false; // isMuted name in context is confusing, let's assume isMuted=true means ACTIVE/TALKING based on backend logic
@@ -60,27 +59,9 @@ const MainControlPage: React.FC = () => {
     if (!config) return <div className="flex items-center justify-center h-screen text-zinc-500">Connecting...</div>;
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-950 text-zinc-50 overflow-hidden relative selection:bg-blue-500/30">
-            {/* Background Gradient Mesh (Subtle) */}
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950 pointer-events-none z-0" />
-
-            {/* 1) Header (10% height) - Glassmorphism */}
-            <header className="relative z-20 h-[10vh] flex items-center px-4 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/50">
-                <div className="flex-shrink-0 mr-0 h-[75%] flex items-center">
-                    {config.logoPath ? (
-                        <img
-                            src={`http://${window.location.hostname}:3001${config.logoPath}`}
-                            alt="Logo"
-                            className="h-full w-auto object-contain"
-                        />
-                    ) : (
-                        <div className="h-full aspect-square rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-900/20">
-                            TB
-                        </div>
-                    )}
-                </div>
-
-                <div className="w-56 mx-4 flex-shrink-0">
+        <div className="flex flex-col h-full overflow-hidden relative selection:bg-blue-500/30">
+            <HeaderItems>
+                <div className="w-56 flex-shrink-0">
                     <div className="relative group w-full">
                         <select
                             value={currentMusician?.id || ''}
@@ -102,7 +83,7 @@ const MainControlPage: React.FC = () => {
                     <div className={clsx("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor] transition-colors duration-500", isConnected ? "bg-emerald-500 text-emerald-500" : "bg-red-500 text-red-500")} />
                     <button
                         onClick={() => navigate('/settings')}
-                        className="h-[80%] aspect-square flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-full transition-all active:scale-95"
+                        className="h-10 aspect-square flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-full transition-all active:scale-95"
                     >
                         <span className="sr-only">Settings</span>
                         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -111,7 +92,10 @@ const MainControlPage: React.FC = () => {
                         </svg>
                     </button>
                 </div>
-            </header>
+            </HeaderItems>
+
+            {/* Background Gradient Mesh (Subtle) */}
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950 pointer-events-none z-0" />
 
             {/* 2) Meter Row (10% height) - Minimalist */}
             <div className="relative z-10 h-[10vh] flex border-b border-zinc-800/50 bg-zinc-950">
@@ -162,7 +146,7 @@ const MainControlPage: React.FC = () => {
                 </div>
 
                 {/* Right: Talk Button (80% width) */}
-                <div className="w-[80%] p-6 md:p-12 flex items-center justify-center">
+                <div className="w-[80%] p-4 flex items-center justify-center">
                     <button
                         onMouseDown={handleTalkDown}
                         onMouseUp={handleTalkUp}
@@ -171,7 +155,7 @@ const MainControlPage: React.FC = () => {
                         onTouchEnd={handleTalkUp}
                         disabled={!currentMusician}
                         className={clsx(
-                            "w-full h-full rounded-[2rem] text-5xl md:text-7xl font-black tracking-widest transition-all duration-100 flex items-center justify-center relative overflow-hidden ring-1 ring-white/10 group select-none touch-manipulation",
+                            "w-full h-full rounded-xl font-black tracking-widest transition-all duration-100 flex items-center justify-center relative overflow-hidden ring-1 ring-white/10 group select-none touch-manipulation",
                             !currentMusician ? "bg-zinc-900 text-zinc-700 cursor-not-allowed shadow-none" :
                                 isTalking
                                     ? "bg-gradient-to-br from-red-600 to-red-700 text-white shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] scale-[0.99]"
@@ -182,7 +166,10 @@ const MainControlPage: React.FC = () => {
                         {!isTalking && currentMusician && (
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 translate-x-[-100%] animate-[shimmer_3s_infinite_2s] pointer-events-none" />
                         )}
-                        <span className={clsx("relative z-10 drop-shadow-sm", isTalking && "text-red-100")}>TALK</span>
+                        <span className={clsx(
+                            "relative z-10 drop-shadow-sm max-w-[80%] max-h-[80%] flex items-center justify-center mx-auto text-7xl md:text-9xl font-black tracking-widest",
+                            isTalking && "text-red-100"
+                        )}>TALK</span>
                     </button>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
-import { getConfig, updateConfig } from './config';
+import { getConfig, updateConfig, updateTalkbackState } from './config';
 import { MeterUpdate } from './types';
 
 interface ClientMessage {
@@ -15,6 +15,15 @@ export const setupWebSockets = (server: Server) => {
 
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected');
+
+        // Send initial talkback states to the newly connected client
+        const config = getConfig();
+        if (config.talkbackStates && config.talkbackStates.length > 0) {
+            ws.send(JSON.stringify({
+                type: 'INITIAL_STATE',
+                payload: config.talkbackStates
+            }));
+        }
 
         ws.on('message', (message: string) => {
             try {
@@ -47,9 +56,21 @@ const handleClientMessage = (msg: ClientMessage, wss: WebSocketServer) => {
     // For now, we just log the action and broadcast to other clients
     if (msg.type === 'SET_GAIN') {
         console.log(`[WING] Set Gain: ID=${msg.channelId}, Value=${msg.value}`);
+
+        // Persist the gain change
+        if (msg.channelId && msg.value !== undefined) {
+            updateTalkbackState(msg.channelId, { gain: msg.value });
+        }
+
         broadcast(wss, { type: 'GAIN_UPDATE', payload: { talkbackId: msg.channelId, level: msg.value } });
     } else if (msg.type === 'SET_MUTE') {
         console.log(`[WING] Set Mute: ID=${msg.channelId}, Active=${msg.active}`);
+
+        // Persist the mute change
+        if (msg.channelId && msg.active !== undefined) {
+            updateTalkbackState(msg.channelId, { isMuted: msg.active });
+        }
+
         broadcast(wss, { type: 'MUTE_UPDATE', payload: { talkbackId: msg.channelId, active: msg.active } });
     }
 };

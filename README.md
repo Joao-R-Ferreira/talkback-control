@@ -16,7 +16,7 @@ A professional-grade talkback communication system for recording studios and liv
 - **🔌 WebSocket Communication** - Low-latency real-time state synchronization
 - **🖼️ Custom Branding** - Upload and display custom logos
 - **🎨 Premium UI/UX** - Modern glassmorphism design with smooth animations
-- **📱 Responsive Design** - Works seamlessly on desktop and tablet devices
+- **📱 Responsive Design** - Works seamlessly on desktop and tablet/smartphone devices on browser
 - **🔐 Simple Authentication** - Basic auth system for configuration protection
 
 ## 🏗️ Architecture

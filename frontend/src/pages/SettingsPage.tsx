@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { login, updateConfig, uploadImage, getImages, deleteImage } from '../services/api';
 import type { AppConfig } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { HeaderItems } from '../context/HeaderContext';
 
 const SettingsPage: React.FC = () => {
     const { config, refreshConfig } = useApp();
@@ -72,11 +73,14 @@ const SettingsPage: React.FC = () => {
     if (!isAuthenticated) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 text-white p-4">
-                <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-                    <h1 className="text-2xl font-bold mb-6 text-center tracking-tight">Admin Access</h1>
+                <HeaderItems hidden={true}>
+                    {null}
+                </HeaderItems>
+                <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-8 shadow-2xl">
+                    <h1 className="text-2xl font-bold mb-6 text-center tracking-tight uppercase">Admin Access</h1>
                     <form onSubmit={handleLogin} className="flex flex-col gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Username</label>
+                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1 ml-1">Username</label>
                             <input
                                 ref={usernameInputRef}
                                 type="text"
@@ -87,7 +91,7 @@ const SettingsPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Password</label>
+                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1 ml-1">Password</label>
                             <input
                                 type="password"
                                 value={password}
@@ -96,13 +100,13 @@ const SettingsPage: React.FC = () => {
                                 className="w-full bg-zinc-950 text-white p-3 rounded-lg border border-zinc-800 focus:border-blue-500 outline-none transition-colors"
                             />
                         </div>
-                        <button type="submit" className="mt-2 w-full p-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/20 transition-all">
-                            Login
+                        <button type="submit" className="mt-2 w-full p-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/20 transition-all active:scale-[0.98] uppercase tracking-widest text-sm">
+                            Continue
                         </button>
-                        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                        {error && <p className="text-red-500 text-sm text-center font-bold">{error}</p>}
                     </form>
                     <div className="mt-8 text-center">
-                        <button onClick={() => navigate('/')} className="text-zinc-500 text-sm hover:text-white transition-colors">← Back to App</button>
+                        <button onClick={() => navigate('/')} className="text-zinc-500 text-sm hover:text-white transition-colors uppercase tracking-widest font-bold">← Back to App</button>
                     </div>
                 </div>
             </div>
@@ -112,29 +116,17 @@ const SettingsPage: React.FC = () => {
     if (!config) return <div className="p-8 text-zinc-500">Loading config...</div>;
 
     return (
-        <div className="h-screen bg-zinc-950 text-zinc-50 overflow-y-auto pb-20">
-            <header className="relative z-20 h-[10vh] flex items-center px-4 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/50 flex items-center justify-start gap-4">
-                <div className="flex-shrink-0 mr-0 h-[75%] flex items-center">
-                    {config.logoPath ? (
-                        <img
-                            src={`http://${window.location.hostname}:3001${config.logoPath}`}
-                            alt="Logo"
-                            className="h-full w-auto object-contain"
-                        />
-                    ) : (
-                        <div className="h-full aspect-square rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-900/20">
-                            TB
-                        </div>
-                    )}
-                </div>
-                <h1 className="text-xl font-bold tracking-tight">Settings</h1>
+        <div className="h-full overflow-y-auto pb-20">
+            <HeaderItems>
+                <h1 className="text-xl font-bold">Settings</h1>
                 <button
                     onClick={() => navigate('/')}
                     className="text-sm font-medium text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded-lg transition-colors border border-zinc-800 ml-auto"
                 >
                     Done
                 </button>
-            </header>
+            </HeaderItems>
+
 
             <div className="max-w-3xl mx-auto p-6 space-y-8">
                 {/* Appearance */}
@@ -258,7 +250,7 @@ const SettingsPage: React.FC = () => {
 
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden divide-y divide-zinc-800">
                         {config.talkbacks.map((tb, idx) => (
-                            <div key={tb.id} className="p-4 flex gap-4 items-center">
+                            <div key={tb.id} className="p-4 flex gap-4 items-end group">
                                 <div className="flex-grow">
                                     <label className="block text-[10px] text-zinc-500 uppercase font-bold mb-1">Label</label>
                                     <input
@@ -301,6 +293,29 @@ const SettingsPage: React.FC = () => {
                                         }}
                                     />
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        if (config.talkbacks.length <= 1) {
+                                            alert("You must have at least one talkback channel.");
+                                            return;
+                                        }
+                                        if (confirm(`Are you sure you want to delete "${tb.name}"? This will affect musicians assigned to it.`)) {
+                                            const newTbs = config.talkbacks.filter(t => t.id !== tb.id);
+                                            // Handle musicians assigned to this talkback
+                                            const nextTbId = newTbs[0]?.id || '';
+                                            const newMusicians = config.musicians.map(m =>
+                                                m.talkbackId === tb.id ? { ...m, talkbackId: nextTbId } : m
+                                            );
+                                            handleSave({ talkbacks: newTbs, musicians: newMusicians });
+                                        }
+                                    }}
+                                    className="p-2 text-zinc-500 hover:text-red-500 transition-colors mb-0.5"
+                                    title="Delete Talkback"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
                             </div>
                         ))}
                     </div>
@@ -320,7 +335,7 @@ const SettingsPage: React.FC = () => {
                     <h2 className="text-sm font-bold text-violet-500 uppercase tracking-wider mb-4 px-1">Musicians</h2>
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden divide-y divide-zinc-800">
                         {config.musicians.map((m, idx) => (
-                            <div key={m.id} className="p-4 flex gap-4 items-center">
+                            <div key={m.id} className="p-4 flex gap-4 items-end group">
                                 <div className="flex-grow">
                                     <label className="block text-[10px] text-zinc-500 uppercase font-bold mb-1">Musician Name</label>
                                     <input
@@ -351,6 +366,20 @@ const SettingsPage: React.FC = () => {
                                         ))}
                                     </select>
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        if (confirm(`Are you sure you want to delete "${m.name}"?`)) {
+                                            const newMusicians = config.musicians.filter(rm => rm.id !== m.id);
+                                            handleSave({ musicians: newMusicians });
+                                        }
+                                    }}
+                                    className="p-2 text-zinc-500 hover:text-red-500 transition-colors mb-0.5"
+                                    title="Delete Musician"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
                             </div>
                         ))}
                     </div>

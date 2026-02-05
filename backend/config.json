@@ -11,19 +11,19 @@
       "channelNumber": 4
     },
     {
-      "id": "tb2",
+      "id": "tb1770291600210",
       "name": "BASS TB",
       "channelType": "aux",
       "channelNumber": 5
     },
     {
-      "id": "tb3",
+      "id": "tb1770291600825",
       "name": "GUITAR TB",
       "channelType": "aux",
       "channelNumber": 6
     },
     {
-      "id": "tb1770255030265",
+      "id": "tb1770291601447",
       "name": "KEYS TB",
       "channelType": "aux",
       "channelNumber": 7
@@ -31,25 +31,62 @@
   ],
   "musicians": [
     {
-      "id": "m1",
-      "name": "DRUMS",
+      "id": "m1770291630609",
+      "name": "André Schwager",
       "talkbackId": "tb1"
     },
     {
-      "id": "m2",
-      "name": "BASS",
-      "talkbackId": "tb2"
+      "id": "m1770291758621",
+      "name": "Assafe Gouveia",
+      "talkbackId": "tb1770291600210"
     },
     {
-      "id": "m3",
-      "name": "GUITAR",
-      "talkbackId": "tb3"
+      "id": "m1770291777687",
+      "name": "Tiago Duarte",
+      "talkbackId": "tb1770291600825"
     },
     {
-      "id": "m1770255178163",
-      "name": "KEYS",
-      "talkbackId": "tb1770255030265"
+      "id": "m1770291784602",
+      "name": "Bruno Pífano",
+      "talkbackId": "tb1770291601447"
     }
   ],
-  "logoPath": "/uploads/1770260512929-ICMAV LOGO.jpeg"
+  "logoPath": "/uploads/1770260512929-ICMAV LOGO.jpeg",
+  "talkbackStates": [
+    {
+      "talkbackId": "tb1",
+      "gain": 0.46,
+      "isMuted": false
+    },
+    {
+      "talkbackId": "tb2",
+      "gain": 1,
+      "isMuted": false
+    },
+    {
+      "talkbackId": "tb3",
+      "gain": 0.8,
+      "isMuted": false
+    },
+    {
+      "talkbackId": "tb1770255030265",
+      "gain": 0.96,
+      "isMuted": false
+    },
+    {
+      "talkbackId": "tb1770291601447",
+      "gain": 0.91,
+      "isMuted": false
+    },
+    {
+      "talkbackId": "tb1770291600210",
+      "gain": 0.82,
+      "isMuted": false
+    },
+    {
+      "talkbackId": "tb1770291600825",
+      "gain": 0,
+      "isMuted": false
+    }
+  ]
 }

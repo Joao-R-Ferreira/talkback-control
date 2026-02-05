@@ -16,11 +16,18 @@ export interface WingConnectionConfig {
     port: number;
 }
 
+export interface TalkbackState {
+    talkbackId: string;
+    gain: number;      // 0.0 to 1.0
+    isMuted: boolean;  // true = talking/active
+}
+
 export interface AppConfig {
     wing: WingConnectionConfig;
     talkbacks: TalkbackConfig[];
     musicians: Musician[];
     logoPath?: string;
+    talkbackStates?: TalkbackState[];
 }
 
 export interface MeterUpdate {
