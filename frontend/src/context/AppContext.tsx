@@ -11,6 +11,9 @@ interface AppContextType {
     talkbackStates: Record<string, { gain: number; isMuted: boolean }>;
     isConnected: boolean;
     refreshConfig: () => Promise<void>;
+    fohCallQueue: Array<{ musicianId: string; musicianName: string; talkbackId: string; talkbackLabel: string }>;
+    triggerFohCall: (musician: Musician) => void;
+    dismissFohCall: (musicianId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -21,6 +24,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [meters, setMeters] = useState<Record<string, number>>({});
     const [talkbackStates, setTalkbackStates] = useState<Record<string, { gain: number; isMuted: boolean }>>({});
     const [isConnected, setIsConnected] = useState(false);
+    const [fohCallQueue, setFohCallQueue] = useState<Array<{ musicianId: string; musicianName: string; talkbackId: string; talkbackLabel: string }>>([]);
 
     const refreshConfig = async () => {
         try {
@@ -64,6 +68,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     ...prev,
                     [talkbackId]: { ...prev[talkbackId], isMuted: active }
                 }));
+            } else if (data.type === 'FOH_CALL') {
+                // Broadcast received: add to call queue
+                setFohCallQueue(prev => {
+                    if (prev.find(call => call.musicianId === data.musicianId)) {
+                        return prev; // Already in queue
+                    }
+                    return [...prev, {
+                        musicianId: data.musicianId,
+                        musicianName: data.musicianName,
+                        talkbackId: data.talkbackId,
+                        talkbackLabel: data.talkbackLabel || ''
+                    }];
+                });
+            } else if (data.type === 'FOH_DISMISS') {
+                // Call dismissed: remove from queue
+                setFohCallQueue(prev => prev.filter(call => call.musicianId !== data.musicianId));
             }
         });
 
@@ -91,8 +111,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     };
 
+    const triggerFohCall = (musician: Musician) => {
+        setFohCallQueue(prev => {
+            // Check if this musician already has a call
+            const hasCall = prev.some(call => call.musicianId === musician.id);
+            
+            if (hasCall) {
+                // Remove their call
+                socketService.sendDismissFohCall(musician.id);
+                return prev.filter(call => call.musicianId !== musician.id);
+            } else {
+                // Add their call
+                const talkbackLabel = config?.talkbacks.find(tb => tb.id === musician.talkbackId)?.name || '';
+                socketService.sendFohCall(musician.id, musician.name, musician.talkbackId, talkbackLabel);
+                return [...prev, {
+                    musicianId: musician.id,
+                    musicianName: musician.name,
+                    talkbackId: musician.talkbackId,
+                    talkbackLabel
+                }];
+            }
+        });
+    };
+
+    const dismissFohCall = (musicianId: string) => {
+        setFohCallQueue(prev => prev.filter(call => call.musicianId !== musicianId));
+        socketService.sendDismissFohCall(musicianId);
+    };
+
     return (
-        <AppContext.Provider value={{ config, currentMusician, selectMusician, meters, talkbackStates, isConnected, refreshConfig }}>
+        <AppContext.Provider value={{ config, currentMusician, selectMusician, meters, talkbackStates, isConnected, refreshConfig, fohCallQueue, triggerFohCall, dismissFohCall }}>
             {children}
         </AppContext.Provider>
     );

@@ -47,6 +47,18 @@ class SocketService {
             this.ws.send(JSON.stringify({ type: 'SET_MUTE', channelId: talkbackId, active }));
         }
     }
+
+    sendFohCall(musicianId: string, musicianName: string, talkbackId: string, talkbackLabel?: string) {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'FOH_CALL', musicianId, musicianName, talkbackId, talkbackLabel }));
+        }
+    }
+
+    sendDismissFohCall(musicianId: string) {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'FOH_DISMISS', musicianId }));
+        }
+    }
 }
 
 export const socketService = new SocketService();

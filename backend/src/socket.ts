@@ -4,10 +4,14 @@ import { getConfig, updateConfig, updateTalkbackState } from './config';
 import { MeterUpdate } from './types';
 
 interface ClientMessage {
-    type: 'SET_GAIN' | 'SET_MUTE';
+    type: 'SET_GAIN' | 'SET_MUTE' | 'FOH_CALL' | 'FOH_DISMISS';
     channelId?: string; // talkbackId
     value?: number; // 0-1 for gain
     active?: boolean; // for mute/unmute
+    musicianId?: string; // for FOH_CALL
+    musicianName?: string; // for FOH_CALL
+    talkbackId?: string; // for FOH_CALL
+    talkbackLabel?: string; // for FOH_CALL
 }
 
 export const setupWebSockets = (server: Server) => {
@@ -72,6 +76,12 @@ const handleClientMessage = (msg: ClientMessage, wss: WebSocketServer) => {
         }
 
         broadcast(wss, { type: 'MUTE_UPDATE', payload: { talkbackId: msg.channelId, active: msg.active } });
+    } else if (msg.type === 'FOH_CALL') {
+        console.log(`[FOH] Call from: ${msg.musicianName} (${msg.musicianId}) on ${msg.talkbackId}`);
+        broadcast(wss, { type: 'FOH_CALL', musicianId: msg.musicianId, musicianName: msg.musicianName, talkbackId: msg.talkbackId, talkbackLabel: msg.talkbackLabel });
+    } else if (msg.type === 'FOH_DISMISS') {
+        console.log(`[FOH] Call dismissed: ${msg.musicianId}`);
+        broadcast(wss, { type: 'FOH_DISMISS', musicianId: msg.musicianId });
     }
 };
 

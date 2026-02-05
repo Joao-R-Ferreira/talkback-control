@@ -1,0 +1,17 @@
+# Node
+node_modules
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# Build
+dist
+build
+
+# Logs
+logs
+*.log
+
+# Ambiente
+.env
+.env.local
