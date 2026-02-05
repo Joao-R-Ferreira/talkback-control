@@ -106,7 +106,7 @@ const SettingsPage: React.FC = () => {
                         {error && <p className="text-red-500 text-sm text-center font-bold">{error}</p>}
                     </form>
                     <div className="mt-8 text-center">
-                        <button onClick={() => navigate('/')} className="text-zinc-500 text-sm hover:text-white transition-colors uppercase tracking-widest font-bold">← Back to App</button>
+                        <button onClick={() => navigate('/')} className="text-zinc-500 text-sm hover:text-white transition-colors uppercase tracking-widest font-bold">← Back to Dashboard</button>
                     </div>
                 </div>
             </div>

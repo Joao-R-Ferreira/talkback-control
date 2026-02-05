@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { useNavigate } from 'react-router-dom';
 import { socketService } from '../services/socket';
 import clsx from 'clsx';
 import { HeaderItems } from '../context/HeaderContext';
 
 const MainControlPage: React.FC = () => {
-    const { config, currentMusician, selectMusician, meters, talkbackStates, isConnected } = useApp();
-    const navigate = useNavigate();
+    const { config, currentMusician, selectMusician, meters, talkbackStates, isConnected, fohCallQueue, triggerFohCall } = useApp();
+
+    // Check if current musician has an active call
+    const currentMusicianHasCall = currentMusician ? fohCallQueue.some(call => call.musicianId === currentMusician.id) : false;
 
     // Derived state from context
     const currentTalkbackId = currentMusician?.talkbackId;
@@ -82,14 +83,18 @@ const MainControlPage: React.FC = () => {
                 <div className="ml-auto flex items-center gap-4">
                     <div className={clsx("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor] transition-colors duration-500", isConnected ? "bg-emerald-500 text-emerald-500" : "bg-red-500 text-red-500")} />
                     <button
-                        onClick={() => navigate('/settings')}
-                        className="h-10 aspect-square flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-full transition-all active:scale-95"
+                        onClick={() => currentMusician && triggerFohCall(currentMusician)}
+                        disabled={!currentMusician}
+                        className={clsx(
+                            "h-10 px-4 rounded-full transition-all active:scale-95 text-sm font-bold",
+                            currentMusicianHasCall
+                                ? "bg-red-600 text-white animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.8)]"
+                                : currentMusician
+                                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                        )}
                     >
-                        <span className="sr-only">Settings</span>
-                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        {currentMusicianHasCall ? 'CANCEL CALL' : 'FOH CALL'}
                     </button>
                 </div>
             </HeaderItems>
