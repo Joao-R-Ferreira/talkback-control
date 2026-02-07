@@ -21,6 +21,12 @@ export const setupWebSockets = (server: Server) => {
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected');
 
+        // Send current connection status immediately
+        ws.send(JSON.stringify({
+            type: 'CONNECTION_STATUS',
+            payload: { connected: wing.isWingConnected() }
+        }));
+
         // Initialize/ensure wing module is ready according to config mode
         try {
             wing.initWing();
@@ -73,6 +79,14 @@ export const setupWebSockets = (server: Server) => {
 
         broadcast(wss, { type: 'METERS', payload: updates });
     }, 100); // 100ms update rate
+
+    // Connection Status Heartbeat (Slower)
+    setInterval(() => {
+        broadcast(wss, {
+            type: 'CONNECTION_STATUS',
+            payload: { connected: wing.isWingConnected() }
+        });
+    }, 2000); // Check every 2 seconds
 };
 
 const handleClientMessage = (msg: ClientMessage, wss: WebSocketServer) => {

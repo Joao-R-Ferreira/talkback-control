@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { HeaderItems } from '../context/HeaderContext';
 
 const MainControlPage: React.FC = () => {
-    const { config, currentMusician, selectMusician, meters, talkbackStates, isConnected, fohCallQueue, triggerFohCall } = useApp();
+    const { config, currentMusician, selectMusician, meters, talkbackStates, wingStatus, fohCallQueue, triggerFohCall } = useApp();
 
     // Check if current musician has an active call
     const currentMusicianHasCall = currentMusician ? fohCallQueue.some(call => call.musicianId === currentMusician.id) : false;
@@ -81,7 +81,13 @@ const MainControlPage: React.FC = () => {
                 </div>
 
                 <div className="ml-auto flex items-center gap-4">
-                    <div className={clsx("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor] transition-colors duration-500", isConnected ? "bg-emerald-500 text-emerald-500" : "bg-red-500 text-red-500")} />
+                    <div className={clsx(
+                        "w-3 h-3 rounded-full shadow-[0_0_12px_currentColor] transition-colors duration-500",
+                        config.mode === 'mock' ? 'bg-gray-500 text-gray-500' :
+                            wingStatus === 'connected' ? 'bg-emerald-500 text-emerald-500' :
+                                wingStatus === 'disconnected' ? 'bg-red-500 text-red-500 animate-pulse' :
+                                    'bg-gray-400 text-gray-400'
+                    )} />
                     <button
                         onClick={() => currentMusician && triggerFohCall(currentMusician)}
                         disabled={!currentMusician}

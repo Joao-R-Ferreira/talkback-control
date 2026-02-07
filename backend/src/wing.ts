@@ -1,10 +1,10 @@
 import { getConfig } from './config';
 import { TalkbackConfig } from './types';
 import logs from './logs';
-import { createConnection } from 'net';
 
 let oscPort: any = null;
 let oscAvailable = false;
+let lastOscTime = 0;
 const meterLevels: { [talkbackId: string]: number } = {}; // Store current meter levels
 
 // Try to dynamically load an OSC/UDP library if available.
@@ -32,6 +32,17 @@ export const initWing = () => {
     }
 
     const { osc } = oscPort;
+
+    // Close existing port if it exists
+    if (oscPort.portInstance) {
+        try {
+            oscPort.portInstance.close();
+        } catch (e) {
+            // Ignore close errors
+        }
+        oscPort.portInstance = null;
+    }
+
     // create UDP port to talk to console
     try {
         oscPort.portInstance = new osc.UDPPort({
@@ -45,6 +56,25 @@ export const initWing = () => {
         oscPort.portInstance.open();
         oscPort.portInstance.on('ready', () => {
             console.log(`[WING] OSC UDPPort opened to ${cfg.wing.ip}:${cfg.wing.port}`);
+
+            // Start heartbeat / subscription
+            const heartbeat = () => {
+                if (oscPort.portInstance) {
+                    try {
+                        // /xremote keeps the meter stream alive for this IP (refresh every 10s usually, so 5s is safe)
+                        oscPort.portInstance.send({ address: '/xremote', args: [] });
+                        // /xinfo is a generic health check
+                        oscPort.portInstance.send({ address: '/xinfo', args: [] });
+                    } catch (e) {
+                        // Ignore send errors
+                    }
+                }
+            };
+
+            heartbeat();
+            const interval = setInterval(heartbeat, 5000);
+
+            oscPort.portInstance.on('close', () => clearInterval(interval));
         });
 
         // Listen for meter OSC messages from Wing console
@@ -59,6 +89,9 @@ export const initWing = () => {
                     const channelNum = parseInt(chMatch ? chMatch[1] : auxMatch![1]);
                     const channelType = chMatch ? 'ch' : 'aux';
                     const meterValue = oscMsg.args?.[0]?.value ?? 0;
+
+                    // Update connection monitoring
+                    lastOscTime = Date.now();
 
                     // Find the talkback config that matches this channel
                     const tb = cfg.talkbacks.find(
@@ -80,14 +113,15 @@ export const initWing = () => {
     }
 };
 
-const sendOsc = (address: string, value: number | boolean) => {
+const sendOsc = (address: string, value: number | boolean, type?: 'i' | 'f') => {
     const cfg = getConfig();
-    
+
     // Log the OSC command
-    logs.addLogEntry(address, value, typeof value === 'boolean' ? 'int' : 'float');
-    
+    const logType = type === 'i' ? 'int' : (type === 'f' ? 'float' : (typeof value === 'boolean' ? 'int' : 'float'));
+    logs.addLogEntry(address, value, logType);
+
     if (cfg.mode === 'mock') {
-        console.log(`[WING][MOCK] ${address} -> ${value}`);
+        console.log(`[WING][MOCK] ${address} -> ${value} (${type || 'auto'})`);
         return;
     }
 
@@ -97,7 +131,14 @@ const sendOsc = (address: string, value: number | boolean) => {
     }
 
     try {
-        const args = typeof value === 'boolean' ? [{ type: 'i', value: value ? 1 : 0 }] : [{ type: 'f', value }];
+        let oscType = type;
+        if (!oscType) {
+            oscType = typeof value === 'boolean' ? 'i' : 'f';
+        }
+
+        const oscValue = typeof value === 'boolean' ? (value ? 1 : 0) : value;
+        const args = [{ type: oscType, value: oscValue }];
+
         oscPort.portInstance.send({ address, args });
     } catch (err) {
         console.error('[WING] Failed to send OSC message', err);
@@ -118,7 +159,7 @@ export const setGain = (tb: TalkbackConfig, gain: number) => {
         address = `/aux/${tb.channelNumber}/fdr`;
     }
 
-    sendOsc(address, dbValue);
+    sendOsc(address, dbValue, 'f');
 };
 
 export const setMute = (tb: TalkbackConfig, active: boolean) => {
@@ -134,7 +175,7 @@ export const setMute = (tb: TalkbackConfig, active: boolean) => {
         address = `/aux/${tb.channelNumber}/mute`;
     }
 
-    sendOsc(address, muteValue);
+    sendOsc(address, muteValue, 'i');
 };
 
 export const sendFohCall = (musicianId: string, musicianName: string, tb: TalkbackConfig) => {
@@ -143,7 +184,7 @@ export const sendFohCall = (musicianId: string, musicianName: string, tb: Talkba
     const address = `/talkback/call`;
     // send a placeholder compound value as float (not standard) - prefer per-arg metadata
     // We'll send musicianId numeric hash and a float 1.0 to indicate ON
-    sendOsc(address, 1.0);
+    sendOsc(address, 1, 'i');
     console.log(`[WING] FOH call -> ${musicianName} (${musicianId}) on ${tb.name}`);
 };
 
@@ -153,39 +194,59 @@ export const getMeterLevels = (): { [talkbackId: string]: number } => {
 
 export const testConnection = (): Promise<{ connected: boolean; message: string }> => {
     const cfg = getConfig();
-    
+
     if (cfg.mode === 'mock') {
         return Promise.resolve({ connected: true, message: 'Demo mode - always connected' });
     }
 
+    if (isWingConnected()) {
+        return Promise.resolve({ connected: true, message: 'Wing console already connected' });
+    }
+
+    if (!oscAvailable || !oscPort.portInstance) {
+        return Promise.resolve({ connected: false, message: 'OSC not initialized or available' });
+    }
+
     return new Promise<{ connected: boolean; message: string }>((resolve) => {
-        const socket = createConnection({
-            host: cfg.wing.ip,
-            port: cfg.wing.port,
-            timeout: 3000
-        });
+        let resolved = false;
 
-        socket.on('connect', () => {
-            socket.destroy();
-            resolve({ connected: true, message: 'Wing console found' });
-        });
+        const onMessage = () => {
+            if (!resolved) {
+                resolved = true;
+                oscPort.portInstance.removeListener('message', onMessage);
+                resolve({ connected: true, message: 'Wing console found' });
+            }
+        };
 
-        socket.on('error', () => {
-            socket.destroy();
-            resolve({ connected: false, message: 'Console not found' });
-        });
+        // Listen for any message response
+        oscPort.portInstance.on('message', onMessage);
 
-        socket.on('timeout', () => {
-            socket.destroy();
-            resolve({ connected: false, message: 'Connection timeout' });
-        });
+        // Send a ping message
+        try {
+            oscPort.portInstance.send({ address: '/xinfo', args: [] });
+        } catch (e) {
+            resolved = true;
+            oscPort.portInstance.removeListener('message', onMessage);
+            resolve({ connected: false, message: 'Failed to send UDP ping' });
+        }
 
-        // Timeout fallback
+        // Timeout
         setTimeout(() => {
-            socket.destroy();
-            resolve({ connected: false, message: 'Connection timeout' });
-        }, 4000);
+            if (!resolved) {
+                resolved = true;
+                oscPort.portInstance.removeListener('message', onMessage);
+                resolve({ connected: false, message: 'Console not found (UDP timeout)' });
+            }
+        }, 2000);
     });
+};
+
+export const isWingConnected = (): boolean => {
+    const cfg = getConfig();
+    if (cfg.mode === 'mock') return true;
+
+    // We consider it connected if we've received OSC in the last 5 seconds
+    return (Date.now() - lastOscTime) < 5000;
 };
 
 export default {
@@ -194,5 +255,6 @@ export default {
     setMute,
     sendFohCall,
     getMeterLevels,
-    testConnection
+    testConnection,
+    isWingConnected
 };

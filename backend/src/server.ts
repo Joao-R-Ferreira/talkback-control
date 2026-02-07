@@ -57,6 +57,12 @@ app.get('/api/config', (req: Request, res: Response) => {
 
 app.post('/api/config', requireAuth, (req: Request, res: Response) => {
     const newConfig = updateConfig(req.body);
+    // Re-initialize wing if configuration changed
+    try {
+        wing.initWing();
+    } catch (err) {
+        console.warn('Wing re-initialization failed', err);
+    }
     res.json(newConfig);
 });
 

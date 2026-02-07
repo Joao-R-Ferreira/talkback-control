@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { login, updateConfig, uploadImage, getImages, deleteImage, startLogging, stopLogging, getLogStatus, testWingConnection } from '../services/api';
+import { login, updateConfig, uploadImage, getImages, deleteImage, startLogging, stopLogging, getLogStatus } from '../services/api';
 import type { AppConfig } from '../types';
 import type { LogStats } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { HeaderItems } from '../context/HeaderContext';
 import clsx from 'clsx';
 
 const SettingsPage: React.FC = () => {
-    const { config, refreshConfig } = useApp();
+    const { config, refreshConfig, wingStatus, testConnection } = useApp();
     const navigate = useNavigate();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [token, setToken] = useState('');
@@ -20,7 +20,6 @@ const SettingsPage: React.FC = () => {
     const [logStats, setLogStats] = useState<LogStats | null>(null);
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
     const [mode, setMode] = useState<'mock' | 'production'>(config?.mode || 'production');
-    const [wingStatus, setWingStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
     const [isTestingWing, setIsTestingWing] = useState(false);
 
     // Fetch images when authenticated
@@ -53,15 +52,6 @@ const SettingsPage: React.FC = () => {
             setMode(config.mode as 'mock' | 'production');
         }
     }, [config?.mode]);
-
-    // Reset wing status when mode changes
-    React.useEffect(() => {
-        if (mode === 'mock') {
-            setWingStatus('unknown'); // In demo mode, not applicable
-        } else {
-            setWingStatus('unknown'); // Reset to unknown when entering production
-        }
-    }, [mode]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,13 +98,8 @@ const SettingsPage: React.FC = () => {
 
     const handleTestWingConnection = async () => {
         setIsTestingWing(true);
-        setWingStatus('unknown');
         try {
-            const result = await testWingConnection();
-            setWingStatus(result.connected ? 'connected' : 'disconnected');
-        } catch (error) {
-            console.error('Failed to test wing connection', error);
-            setWingStatus('disconnected');
+            await testConnection();
         } finally {
             setIsTestingWing(false);
         }
@@ -324,11 +309,10 @@ const SettingsPage: React.FC = () => {
                                     setMode(newMode);
                                     handleSave({ mode: newMode });
                                 }}
-                                className={`w-full py-3 rounded-lg font-semibold text-sm transition-all ${
-                                    mode === 'production'
-                                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                                        : 'bg-amber-600 hover:bg-amber-700 text-white'
-                                }`}
+                                className={`w-full py-3 rounded-lg font-semibold text-sm transition-all ${mode === 'production'
+                                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                                    : 'bg-amber-600 hover:bg-amber-700 text-white'
+                                    }`}
                             >
                                 {mode === 'production' ? '🟢 PRODUCTION MODE (Active)' : '🟡 DEMO MODE'}
                             </button>
@@ -343,27 +327,26 @@ const SettingsPage: React.FC = () => {
                                 <button
                                     onClick={handleTestWingConnection}
                                     disabled={isTestingWing || mode === 'mock'}
-                                    className={`flex-1 py-3 rounded-lg font-semibold text-sm transition-all ${
-                                        mode === 'mock'
-                                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                            : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
-                                    }`}
+                                    className={`flex-1 py-3 rounded-lg font-semibold text-sm transition-all ${mode === 'mock'
+                                        ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
+                                        }`}
                                 >
                                     {isTestingWing ? 'Testing...' : 'Check Connection'}
                                 </button>
                                 <div className={clsx(
                                     "w-3 h-3 rounded-full shadow-[0_0_12px_currentColor] transition-colors flex-shrink-0",
                                     mode === 'mock' ? 'bg-gray-500 text-gray-500' :
-                                    wingStatus === 'connected' ? 'bg-emerald-500 text-emerald-500' :
-                                    wingStatus === 'disconnected' ? 'bg-red-500 text-red-500 animate-pulse' :
-                                    'bg-gray-400 text-gray-400'
+                                        wingStatus === 'connected' ? 'bg-emerald-500 text-emerald-500' :
+                                            wingStatus === 'disconnected' ? 'bg-red-500 text-red-500 animate-pulse' :
+                                                'bg-gray-400 text-gray-400'
                                 )} />
                             </div>
                             <p className="text-xs text-zinc-500 mt-2">
-                                {mode === 'mock' ? 'Demo mode - connection check disabled' : 
-                                wingStatus === 'connected' ? '🟢 Connected to Wing console' :
-                                wingStatus === 'disconnected' ? '🔴 Console not found' :
-                                '⚫ Status unknown - click "Check Connection"'}
+                                {mode === 'mock' ? 'Demo mode - connection check disabled' :
+                                    wingStatus === 'connected' ? '🟢 Connected to Wing console' :
+                                        wingStatus === 'disconnected' ? '🔴 Console not found' :
+                                            '⚫ Status unknown - click "Check Connection"'}
                             </p>
                         </div>
                     </div>
@@ -381,11 +364,10 @@ const SettingsPage: React.FC = () => {
                             <button
                                 onClick={handleToggleLogging}
                                 disabled={isLoadingLogs}
-                                className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
-                                    logStats?.isLogging
-                                        ? 'bg-red-600 hover:bg-red-700 text-white'
-                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${logStats?.isLogging
+                                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                                 {isLoadingLogs ? 'Loading...' : logStats?.isLogging ? 'Stop Logging' : 'Start Logging'}
                             </button>

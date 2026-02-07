@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AppConfig, MeterUpdate, Musician } from '../types';
-import { getConfig } from '../services/api';
+import { getConfig, testWingConnection } from '../services/api';
 import { socketService } from '../services/socket';
 
 interface AppContextType {
@@ -10,6 +10,8 @@ interface AppContextType {
     meters: Record<string, number>;
     talkbackStates: Record<string, { gain: number; isMuted: boolean }>;
     isConnected: boolean;
+    wingStatus: 'unknown' | 'connected' | 'disconnected';
+    testConnection: () => Promise<void>;
     refreshConfig: () => Promise<void>;
     fohCallQueue: Array<{ musicianId: string; musicianName: string; talkbackId: string; talkbackLabel: string }>;
     triggerFohCall: (musician: Musician) => void;
@@ -24,14 +26,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [meters, setMeters] = useState<Record<string, number>>({});
     const [talkbackStates, setTalkbackStates] = useState<Record<string, { gain: number; isMuted: boolean }>>({});
     const [isConnected, setIsConnected] = useState(false);
+    const [wingStatus, setWingStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
     const [fohCallQueue, setFohCallQueue] = useState<Array<{ musicianId: string; musicianName: string; talkbackId: string; talkbackLabel: string }>>([]);
 
     const refreshConfig = async () => {
         try {
             const data = await getConfig();
+            const prevMode = config?.mode;
             setConfig(data);
+
+            // Reset wing status when switching modes
+            if (prevMode && data.mode !== prevMode) {
+                setWingStatus('unknown');
+            }
         } catch (error) {
             console.error('Failed to load config', error);
+        }
+    };
+
+    const testConnection = async () => {
+        try {
+            const result = await testWingConnection();
+            setWingStatus(result.connected ? 'connected' : 'disconnected');
+        } catch (error) {
+            console.error('Failed to test wing connection', error);
+            setWingStatus('disconnected');
         }
     };
 
@@ -56,6 +75,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     return next;
                 });
                 setIsConnected(true);
+            } else if (data.type === 'CONNECTION_STATUS') {
+                const { connected } = data.payload;
+                setWingStatus(connected ? 'connected' : 'disconnected');
+                setIsConnected(connected);
             } else if (data.type === 'GAIN_UPDATE') {
                 const { talkbackId, level } = data.payload;
                 setTalkbackStates(prev => ({
@@ -115,7 +138,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFohCallQueue(prev => {
             // Check if this musician already has a call
             const hasCall = prev.some(call => call.musicianId === musician.id);
-            
+
             if (hasCall) {
                 // Remove their call
                 socketService.sendDismissFohCall(musician.id);
@@ -140,7 +163,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     return (
-        <AppContext.Provider value={{ config, currentMusician, selectMusician, meters, talkbackStates, isConnected, refreshConfig, fohCallQueue, triggerFohCall, dismissFohCall }}>
+        <AppContext.Provider value={{
+            config,
+            currentMusician,
+            selectMusician,
+            meters,
+            talkbackStates,
+            isConnected,
+            wingStatus,
+            testConnection,
+            refreshConfig,
+            fohCallQueue,
+            triggerFohCall,
+            dismissFohCall
+        }}>
             {children}
         </AppContext.Provider>
     );
