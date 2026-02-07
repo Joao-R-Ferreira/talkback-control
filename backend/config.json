@@ -3,6 +3,7 @@
     "ip": "192.168.1.199",
     "port": 2223
   },
+  "mode": "production",
   "talkbacks": [
     {
       "id": "tb1",
@@ -55,7 +56,7 @@
   "talkbackStates": [
     {
       "talkbackId": "tb1",
-      "gain": 0.46,
+      "gain": 0.83,
       "isMuted": false
     },
     {

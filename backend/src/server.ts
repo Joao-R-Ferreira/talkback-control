@@ -7,6 +7,8 @@ import path from 'path';
 import fs from 'fs';
 import { getConfig, updateConfig } from './config';
 import { setupWebSockets } from './socket';
+import wing from './wing';
+import logs from './logs';
 
 const app = express();
 const server = http.createServer(app);
@@ -105,8 +107,50 @@ app.get('/api/images', requireAuth, (req: Request, res: Response) => {
     });
 });
 
+// Logging Endpoints
+app.get('/api/logs/status', (req: Request, res: Response) => {
+    res.json(logs.getLogStats());
+});
+
+app.post('/api/logs/start', (req: Request, res: Response) => {
+    logs.startLogging();
+    res.json({ status: 'Logging started', isLogging: true });
+});
+
+app.post('/api/logs/stop', (req: Request, res: Response) => {
+    logs.stopLogging();
+    res.json({ status: 'Logging stopped', isLogging: false });
+});
+
+app.get('/api/logs', (req: Request, res: Response) => {
+    const logEntries = logs.getLogs();
+    res.json({ entries: logEntries, count: logEntries.length });
+});
+
+app.delete('/api/logs', (req: Request, res: Response) => {
+    logs.clearLogs();
+    res.json({ status: 'Logs cleared', cleared: true });
+});
+
+// Wing Connection Test Endpoint
+app.get('/api/wing/test', async (req: Request, res: Response) => {
+    try {
+        const result = await wing.testConnection();
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ connected: false, message: 'Test failed' });
+    }
+});
+
 // Start WebSocket handling
 setupWebSockets(server);
+
+// Initialize Wing comms according to config (best-effort)
+try {
+    wing.initWing();
+} catch (err) {
+    console.warn('Wing initialization failed at startup', err);
+}
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend server running on http://0.0.0.0:${PORT}`);

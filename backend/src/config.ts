@@ -10,6 +10,8 @@ const DEFAULT_CONFIG: AppConfig = {
         ip: '192.168.1.199',
         port: 2223 // Default OSC port
     },
+    // Default mode: mock for safe local development
+    mode: 'mock',
     talkbacks: [
         { id: 'tb1', name: 'Drums TB', channelType: 'ch', channelNumber: 1 },
         { id: 'tb2', name: 'Keys TB', channelType: 'ch', channelNumber: 2 },

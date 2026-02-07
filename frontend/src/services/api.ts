@@ -51,3 +51,49 @@ export const deleteImage = async (filename: string, token: string): Promise<void
         headers: { Authorization: `Bearer ${token}` }
     });
 };
+
+// Logging API calls
+export interface LogEntry {
+    timestamp: string;
+    address: string;
+    value: number | boolean | string;
+    valueType: string;
+}
+
+export interface LogStats {
+    count: number;
+    isLogging: boolean;
+    startTime?: string;
+    endTime?: string;
+}
+
+export const getLogStatus = async (): Promise<LogStats> => {
+    const response = await api.get<LogStats>('/logs/status');
+    return response.data;
+};
+
+export const startLogging = async (): Promise<{ status: string; isLogging: boolean }> => {
+    const response = await api.post('/logs/start', {});
+    return response.data;
+};
+
+export const stopLogging = async (): Promise<{ status: string; isLogging: boolean }> => {
+    const response = await api.post('/logs/stop', {});
+    return response.data;
+};
+
+export const getLogs = async (): Promise<{ entries: LogEntry[]; count: number }> => {
+    const response = await api.get<{ entries: LogEntry[]; count: number }>('/logs');
+    return response.data;
+};
+
+export const clearLogs = async (): Promise<{ status: string; cleared: boolean }> => {
+    const response = await api.delete('/logs');
+    return response.data;
+};
+
+export const testWingConnection = async (): Promise<{ connected: boolean; message: string }> => {
+    const response = await api.get<{ connected: boolean; message: string }>('/wing/test');
+    return response.data;
+};
+

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { login, updateConfig, uploadImage, getImages, deleteImage } from '../services/api';
+import { login, updateConfig, uploadImage, getImages, deleteImage, startLogging, stopLogging, getLogStatus, testWingConnection } from '../services/api';
 import type { AppConfig } from '../types';
+import type { LogStats } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { HeaderItems } from '../context/HeaderContext';
+import clsx from 'clsx';
 
 const SettingsPage: React.FC = () => {
     const { config, refreshConfig } = useApp();
@@ -15,6 +17,11 @@ const SettingsPage: React.FC = () => {
     const [error, setError] = useState('');
     const [availableImages, setAvailableImages] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [logStats, setLogStats] = useState<LogStats | null>(null);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    const [mode, setMode] = useState<'mock' | 'production'>(config?.mode || 'production');
+    const [wingStatus, setWingStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+    const [isTestingWing, setIsTestingWing] = useState(false);
 
     // Fetch images when authenticated
     React.useEffect(() => {
@@ -22,6 +29,39 @@ const SettingsPage: React.FC = () => {
             getImages(token).then(setAvailableImages).catch(console.error);
         }
     }, [isAuthenticated, token]);
+
+    // Fetch log status when authenticated
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            const fetchLogStatus = async () => {
+                try {
+                    const stats = await getLogStatus();
+                    setLogStats(stats);
+                } catch (error) {
+                    console.error('Failed to fetch log status', error);
+                }
+            };
+            fetchLogStatus();
+            const interval = setInterval(fetchLogStatus, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [isAuthenticated]);
+
+    // Update mode when config changes
+    React.useEffect(() => {
+        if (config?.mode) {
+            setMode(config.mode as 'mock' | 'production');
+        }
+    }, [config?.mode]);
+
+    // Reset wing status when mode changes
+    React.useEffect(() => {
+        if (mode === 'mock') {
+            setWingStatus('unknown'); // In demo mode, not applicable
+        } else {
+            setWingStatus('unknown'); // Reset to unknown when entering production
+        }
+    }, [mode]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,6 +81,42 @@ const SettingsPage: React.FC = () => {
             await refreshConfig();
         } catch (err) {
             alert('Failed to save settings');
+        }
+    };
+
+    const handleToggleLogging = async () => {
+        setIsLoadingLogs(true);
+        try {
+            if (logStats?.isLogging) {
+                await stopLogging();
+            } else {
+                await startLogging();
+            }
+            const stats = await getLogStatus();
+            setLogStats(stats);
+        } catch (error) {
+            console.error('Failed to toggle logging', error);
+            alert('Failed to toggle logging');
+        } finally {
+            setIsLoadingLogs(false);
+        }
+    };
+
+    const handleViewLogs = () => {
+        navigate('/logs');
+    };
+
+    const handleTestWingConnection = async () => {
+        setIsTestingWing(true);
+        setWingStatus('unknown');
+        try {
+            const result = await testWingConnection();
+            setWingStatus(result.connected ? 'connected' : 'disconnected');
+        } catch (error) {
+            console.error('Failed to test wing connection', error);
+            setWingStatus('disconnected');
+        } finally {
+            setIsTestingWing(false);
         }
     };
 
@@ -135,9 +211,9 @@ const SettingsPage: React.FC = () => {
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-6">
                         <div>
                             <label className="block text-xs font-medium text-zinc-400 mb-2">Logo</label>
-                            <div className="flex gap-4 items-start">
+                            <div className="flex gap-4 items-end">
                                 {/* Logo Preview / Selection */}
-                                <div className="flex-grow space-y-3">
+                                <div className="flex-grow space-y-2">
                                     <div className="flex gap-2">
                                         <select
                                             value={config.logoPath || ''}
@@ -184,7 +260,7 @@ const SettingsPage: React.FC = () => {
                                     {isUploading ? (
                                         <div className="text-xs text-pink-500 animate-pulse">Uploading...</div>
                                     ) : (
-                                        <label className="block w-full border border-dashed border-zinc-700 hover:border-pink-500 rounded-lg p-4 text-center cursor-pointer transition-colors group">
+                                        <label className="block w-full border border-dashed border-zinc-700 hover:border-pink-500 rounded-lg p-2 text-center cursor-pointer transition-colors group">
                                             <input
                                                 type="file"
                                                 accept="image/*"
@@ -199,7 +275,7 @@ const SettingsPage: React.FC = () => {
                                 </div>
 
                                 {/* Preview Box */}
-                                <div className="w-20 h-20 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                <div className="w-24 h-24 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                                     {config.logoPath ? (
                                         <img
                                             src={`http://${window.location.hostname}:3001${config.logoPath}`}
@@ -239,6 +315,105 @@ const SettingsPage: React.FC = () => {
                                 className="w-full bg-zinc-950 p-3 rounded-lg border border-zinc-800 focus:border-blue-500 outline-none text-sm transition-colors"
                             />
                         </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-400 mb-2">Mode</label>
+                            <button
+                                onClick={() => {
+                                    const newMode = mode === 'mock' ? 'production' : 'mock';
+                                    setMode(newMode);
+                                    handleSave({ mode: newMode });
+                                }}
+                                className={`w-full py-3 rounded-lg font-semibold text-sm transition-all ${
+                                    mode === 'production'
+                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                        : 'bg-amber-600 hover:bg-amber-700 text-white'
+                                }`}
+                            >
+                                {mode === 'production' ? '🟢 PRODUCTION MODE (Active)' : '🟡 DEMO MODE'}
+                            </button>
+                            <p className="text-xs text-zinc-500 mt-2">
+                                {mode === 'production' ? 'Production mode: Connected to Wing console' : 'Demo mode: Mock data for testing'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-400 mb-2">Wing Console Connection</label>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleTestWingConnection}
+                                    disabled={isTestingWing || mode === 'mock'}
+                                    className={`flex-1 py-3 rounded-lg font-semibold text-sm transition-all ${
+                                        mode === 'mock'
+                                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
+                                    }`}
+                                >
+                                    {isTestingWing ? 'Testing...' : 'Check Connection'}
+                                </button>
+                                <div className={clsx(
+                                    "w-3 h-3 rounded-full shadow-[0_0_12px_currentColor] transition-colors flex-shrink-0",
+                                    mode === 'mock' ? 'bg-gray-500 text-gray-500' :
+                                    wingStatus === 'connected' ? 'bg-emerald-500 text-emerald-500' :
+                                    wingStatus === 'disconnected' ? 'bg-red-500 text-red-500 animate-pulse' :
+                                    'bg-gray-400 text-gray-400'
+                                )} />
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-2">
+                                {mode === 'mock' ? 'Demo mode - connection check disabled' : 
+                                wingStatus === 'connected' ? '🟢 Connected to Wing console' :
+                                wingStatus === 'disconnected' ? '🔴 Console not found' :
+                                '⚫ Status unknown - click "Check Connection"'}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Logging */}
+                <section>
+                    <h2 className="text-sm font-bold text-orange-500 uppercase tracking-wider mb-4 px-1">Logging</h2>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-400 mb-2">OSC Command Log</label>
+                                <p className="text-xs text-zinc-500">Record all OSC commands sent to the Wing console for debugging and monitoring.</p>
+                            </div>
+                            <button
+                                onClick={handleToggleLogging}
+                                disabled={isLoadingLogs}
+                                className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
+                                    logStats?.isLogging
+                                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                                {isLoadingLogs ? 'Loading...' : logStats?.isLogging ? 'Stop Logging' : 'Start Logging'}
+                            </button>
+                        </div>
+
+                        {logStats && (
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-700">
+                                <div>
+                                    <div className="text-xs text-zinc-500 uppercase font-bold mb-1">Status</div>
+                                    <div className={`text-sm font-bold ${logStats.isLogging ? 'text-red-500' : 'text-zinc-500'}`}>
+                                        {logStats.isLogging ? '🔴 Recording' : '⚫ Stopped'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-zinc-500 uppercase font-bold mb-1">Logged Entries</div>
+                                    <div className="text-sm font-bold text-blue-500">{logStats.count}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {logStats && logStats.count > 0 && (
+                            <button
+                                onClick={handleViewLogs}
+                                className="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                            >
+                                View Logs
+                            </button>
+                        )}
                     </div>
                 </section>
 

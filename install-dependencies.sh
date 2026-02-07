@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# dependecies instalation while coding on MacOS can cause permission issues with node_modules/.bin, this script will fix that by setting execute permissions on the binaries after installation.
 set -e
 
 echo "Installing dependencies for TalkBackControl..."

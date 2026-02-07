@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { getConfig, updateConfig, updateTalkbackState } from './config';
+import wing from './wing';
 import { MeterUpdate } from './types';
 
 interface ClientMessage {
@@ -19,6 +20,13 @@ export const setupWebSockets = (server: Server) => {
 
     wss.on('connection', (ws: WebSocket) => {
         console.log('Client connected');
+
+        // Initialize/ensure wing module is ready according to config mode
+        try {
+            wing.initWing();
+        } catch (err) {
+            console.warn('Wing init failed', err);
+        }
 
         // Send initial talkback states to the newly connected client
         const config = getConfig();
@@ -43,13 +51,25 @@ export const setupWebSockets = (server: Server) => {
         });
     });
 
-    // Mock Meter Generation
+    // Mock Meter Generation (or Real Meter Reading)
     setInterval(() => {
         const config = getConfig();
-        const updates: MeterUpdate[] = config.talkbacks.map(tb => ({
-            talkbackId: tb.id,
-            level: Math.random() // Random level 0-1
-        }));
+        let updates: MeterUpdate[];
+
+        if (config.mode === 'production') {
+            // In production mode, read actual meter levels from Wing console via OSC
+            const meterLevels = wing.getMeterLevels();
+            updates = config.talkbacks.map(tb => ({
+                talkbackId: tb.id,
+                level: meterLevels[tb.id] ?? 0 // Use actual level or 0 if not received yet
+            }));
+        } else {
+            // In mock mode, generate random levels for testing
+            updates = config.talkbacks.map(tb => ({
+                talkbackId: tb.id,
+                level: Math.random() // Random level 0-1
+            }));
+        }
 
         broadcast(wss, { type: 'METERS', payload: updates });
     }, 100); // 100ms update rate
@@ -66,6 +86,17 @@ const handleClientMessage = (msg: ClientMessage, wss: WebSocketServer) => {
             updateTalkbackState(msg.channelId, { gain: msg.value });
         }
 
+        // Find talkback config to map to Wing channels
+        const cfg = getConfig();
+        const tb = cfg.talkbacks.find(t => t.id === msg.channelId);
+        if (tb) {
+            try {
+                wing.setGain(tb, msg.value ?? 0);
+            } catch (err) {
+                console.error('Failed to set gain on wing', err);
+            }
+        }
+
         broadcast(wss, { type: 'GAIN_UPDATE', payload: { talkbackId: msg.channelId, level: msg.value } });
     } else if (msg.type === 'SET_MUTE') {
         console.log(`[WING] Set Mute: ID=${msg.channelId}, Active=${msg.active}`);
@@ -75,9 +106,31 @@ const handleClientMessage = (msg: ClientMessage, wss: WebSocketServer) => {
             updateTalkbackState(msg.channelId, { isMuted: msg.active });
         }
 
+        // Try to apply to Wing
+        const cfg2 = getConfig();
+        const tb2 = cfg2.talkbacks.find(t => t.id === msg.channelId);
+        if (tb2) {
+            try {
+                wing.setMute(tb2, !!msg.active);
+            } catch (err) {
+                console.error('Failed to set mute on wing', err);
+            }
+        }
+
         broadcast(wss, { type: 'MUTE_UPDATE', payload: { talkbackId: msg.channelId, active: msg.active } });
     } else if (msg.type === 'FOH_CALL') {
         console.log(`[FOH] Call from: ${msg.musicianName} (${msg.musicianId}) on ${msg.talkbackId}`);
+        // Try to notify Wing about FOH call
+        const cfg3 = getConfig();
+        const tb3 = cfg3.talkbacks.find(t => t.id === msg.talkbackId);
+        if (tb3) {
+            try {
+                wing.sendFohCall(msg.musicianId ?? '', msg.musicianName ?? '', tb3);
+            } catch (err) {
+                console.error('Failed to send FOH call to wing', err);
+            }
+        }
+
         broadcast(wss, { type: 'FOH_CALL', musicianId: msg.musicianId, musicianName: msg.musicianName, talkbackId: msg.talkbackId, talkbackLabel: msg.talkbackLabel });
     } else if (msg.type === 'FOH_DISMISS') {
         console.log(`[FOH] Call dismissed: ${msg.musicianId}`);

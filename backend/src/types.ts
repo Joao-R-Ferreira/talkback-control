@@ -24,6 +24,8 @@ export interface TalkbackState {
 
 export interface AppConfig {
     wing: WingConnectionConfig;
+    // mode: 'mock' will not attempt real OSC comms; 'production' will try to send OSC to the console
+    mode?: 'mock' | 'production';
     talkbacks: TalkbackConfig[];
     musicians: Musician[];
     logoPath?: string;

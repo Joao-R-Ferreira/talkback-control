@@ -21,6 +21,7 @@ export interface AppConfig {
     talkbacks: TalkbackConfig[];
     musicians: Musician[];
     logoPath?: string;
+    mode?: 'mock' | 'production';
 }
 
 export interface MeterUpdate {
